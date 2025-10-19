@@ -15,7 +15,7 @@ class SeparateDialog(QtWidgets.QDialog):
 	def __init__(self, parent=None):
 		super().__init__(parent)
 
-		self.resize(300, 350)
+		self.resize(300, 500)
 		self.setWindowTitle(f'Separate Tool {version.__version__}')
 
 		self.mainLayout = QtWidgets.QVBoxLayout()
@@ -23,7 +23,7 @@ class SeparateDialog(QtWidgets.QDialog):
 		self.setStyleSheet(
 			'''
 				font-family: Courier;
-				background-color: pink;
+				background-color: navy;
 			'''
 		)
 
@@ -36,42 +36,49 @@ class SeparateDialog(QtWidgets.QDialog):
 
 		self.callback_id = None
 
-		self.renameLayout = QtWidgets.QVBoxLayout()
-		self.mainLayout.addLayout(self.renameLayout)
+		self.separateGroup = QtWidgets.QGroupBox('Separate Option')
+		self.separateLayout = QtWidgets.QVBoxLayout()
 
 		self.prefixLabel = QtWidgets.QLabel('Prefix')
 		self.prefixLineEdit = QtWidgets.QLineEdit('Separated_obj')
-		self.suffixLabel = QtWidgets.QLabel('Suffix will be number of objects there separated')
-
-		self.mainLayout.addWidget(self.prefixLabel)
-		self.mainLayout.addWidget(self.prefixLineEdit)
-		self.mainLayout.addWidget(self.suffixLabel)
-
-		self.buttonLayout = QtWidgets.QVBoxLayout()
-		self.mainLayout.addLayout(self.buttonLayout)
-
+		self.sep_delHis_cb = QtWidgets.QCheckBox('Delete History')
+		self.sep_delHis_cb.setChecked(True)
+		self.sep_freeze_cb = QtWidgets.QCheckBox('Freeze Transfrom')
+		self.sep_freeze_cb.setChecked(True)
+		self.sep_center_cb = QtWidgets.QCheckBox('Center Pivot')
+		self.sep_center_cb.setChecked(True)
 		self.separateButton = QtWidgets.QPushButton('Separate')
+
+		self.separateLayout.addWidget(self.prefixLabel)
+		self.separateLayout.addWidget(self.prefixLineEdit)
+		self.separateLayout.addWidget(self.sep_delHis_cb)
+		self.separateLayout.addWidget(self.sep_freeze_cb)
+		self.separateLayout.addWidget(self.sep_center_cb)
+		self.separateLayout.addWidget(self.separateButton)
+		self.separateGroup.setLayout(self.separateLayout)
+		self.mainLayout.addWidget(self.separateGroup)
+
+		self.combineGroup = QtWidgets.QGroupBox('Combine Option')
+		self.combineLayout = QtWidgets.QVBoxLayout()
+		
+		self.renameLabel = QtWidgets.QLabel('Set Name')
+		self.renameLineEdit = QtWidgets.QLineEdit('Combined_obj')
+		self.com_del_cb = QtWidgets.QCheckBox('Delete History')
+		self.com_del_cb.setChecked(True)
+		self.com_freeze_cb = QtWidgets.QCheckBox('Freeze Transfrom')
+		self.com_freeze_cb.setChecked(True)
+		self.com_center_cb = QtWidgets.QCheckBox('Center Pivot')
+		self.com_center_cb.setChecked(True)
 		self.combineButton = QtWidgets.QPushButton('Combine')
-		self.sepAndCombButton = QtWidgets.QPushButton('Separate&Combine')
 
-		self.buttonLayout.addWidget(self.separateButton)
-		self.buttonLayout.addWidget(self.combineButton)
-		self.buttonLayout.addWidget(self.sepAndCombButton)
-
-		self.checkboxGroup = QtWidgets.QGroupBox('Options')
-		self.checkboxLayout = QtWidgets.QVBoxLayout()
-		'''self.mainLayout.addLayout(self.checkboxLayout)'''
-
-		self.deleteHis_cb = QtWidgets.QCheckBox('Delete History')
-		self.freezeTran_cb = QtWidgets.QCheckBox('Freeze Transfrom')
-		self.centerPv_cb = QtWidgets.QCheckBox('Center Pivot')
-
-		self.checkboxLayout.addWidget(self.deleteHis_cb)
-		self.checkboxLayout.addWidget(self.freezeTran_cb)
-		self.checkboxLayout.addWidget(self.centerPv_cb)
-		self.checkboxGroup.setLayout(self.checkboxLayout)
-
-		self.mainLayout.addWidget(self.checkboxGroup)
+		self.combineLayout.addWidget(self.renameLabel)
+		self.combineLayout.addWidget(self.renameLineEdit)
+		self.combineLayout.addWidget(self.com_del_cb)
+		self.combineLayout.addWidget(self.com_freeze_cb)
+		self.combineLayout.addWidget(self.com_center_cb)
+		self.combineLayout.addWidget(self.combineButton)
+		self.combineGroup.setLayout(self.combineLayout)
+		self.mainLayout.addWidget(self.combineGroup)
 
 		self.update_ui_from_selection()
 		self.create_callback()
@@ -94,67 +101,109 @@ class SeparateDialog(QtWidgets.QDialog):
 				print(f"Error removing callback: {e}")
 
 	def update_ui_from_selection(self, *args):
-
 		self.selectionList.blockSignals(True)
-
 		self.selectionList.clear()
-
 		selected_objects = cmds.ls(selection=True)
 
 		if selected_objects:
-		    self.selectionList.addItems(selected_objects)
-		    
+			self.selectionList.addItems(selected_objects)
+
 		self.selectionList.blockSignals(False)
 
 	def closeEvent(self, event):
 		print("Closing UI, removing callback...")
 		self.remove_callback()
-		super(SelectionDisplayUI, self).closeEvent(event)
+		super(SeparateDialog, self).closeEvent(event)
 
 	def connect_signals(self):
 		self.separateButton.clicked.connect(self.separate_logic)
+		self.combineButton.clicked.connect(self.combine_logic)
 
 	def separate_logic(self):
-
-		selection = cmds.ls(selection=True, long=True)
+		selection = cmds.ls(selection=True, long=True, type='transform')
 
 		if not selection:
 			cmds.warning("Please select a mesh object to separate.")
 			return
 
 		target_object = selection[0]
-
 		shape_nodes = cmds.listRelatives(target_object, shapes=True, type='mesh', fullPath=True)
+
 		if not shape_nodes:
 			cmds.warning(f"'{target_object}' is not a valid mesh object. Please select an object with mesh geometry.")
 			return
 
 		try:
-			separated_objects = cmds.polySeparate(target_object)
+			separated_objects = cmds.polySeparate(target_object, constructionHistory=False)
 			if not separated_objects:
 				cmds.warning("Separation failed. The object might already be a single shell.")
+				cmds.select(target_object)
 				return
 		except Exception as e:
 			cmds.error(f"An error occurred during separation: {e}")
 			return
-		    
+
 		print(f"Successfully separated '{target_object}' into {len(separated_objects)} objects.")
 
-		if separated_objects:
-			for new_obj in separated_objects:
-				if self.deleteHis_cb.isChecked():
-					cmds.delete(new_obj, constructionHistory=True)
-					print(f"Deleted history on '{new_obj}'")
+		prefix = self.prefixLineEdit.text()
+		fsep_obj = []
 
-				if self.centerPv_cb.isChecked():
-					cmds.xform(new_obj, centerPivots=True)
-					print(f"Centered pivot on '{new_obj}'")
+		for i, obj in enumerate(separated_objects):
+			newName = cmds.rename(obj, f"{prefix}_{i+1:03}")
 
-				if self.centerPv_cb.isChecked():
-					cmds.makeIdentity(new_obj, apply=True, translate=1, rotate=1, scale=1, normal=0)
-					print(f"Froze transformations on '{new_obj}'")
+			if self.sep_delHis_cb.isChecked():
+				cmds.delete(newName, constructionHistory=True)
 
+			if self.sep_center_cb.isChecked():
+				cmds.xform(newName, centerPivots=True)
+
+			if self.sep_freeze_cb.isChecked():
+				cmds.makeIdentity(newName, apply=True, translate=1, rotate=1, scale=1, normal=0)
+
+			fsep_obj.append(newName)
 		QtWidgets.QMessageBox.information(self, "Success", f"Separated into {len(separated_objects)} objects!")
+
+	def combine_logic(self):
+		selection = cmds.ls(selection=True, long=True)
+
+		if len(selection) <2:
+			cmds.warning("Please select at least two mesh objects to combine.")
+		
+		valid_meshes = []
+		
+		for obj in selection:
+			if cmds.listRelatives(obj, shapes=True, type='mesh', fullPath=True):
+				valid_meshes.append(obj)
+			else:
+				cmds.warning(f"Skipping '{obj}' as it is not a valid mesh.")
+
+		if len(valid_meshes) < 2:
+			cmds.warning("Not enough valid mesh objects selected to perform a combine.")
+			return
+
+		try:
+			combined_result = cmds.polyUnite(valid_meshes, constructionHistory=True)
+			new_object = combined_result[0]
+		except Exception as e:
+			cmds.error(f"An error occurred during combination: {e}")
+			return
+
+		print(f"Successfully combined {len(valid_meshes)} objects into '{new_object}'.")
+		self._post_process([new_object])
+
+		rename = self.renameLineEdit.text()
+		final_name = cmds.rename(new_object, rename)
+
+		if self.com_del_cb.isChecked():
+			cmds.delete(final_name, constructionHistory=True)
+
+		if self.com_center_cb.isChecked():
+			cmds.xform(final_name, centerPivots=True)
+
+		if self.com_center_cb.isChecked():
+			cmds.makeIdentity(final_name, apply=True, translate=1, rotate=1, scale=1, normal=0)
+
+		QtWidgets.QMessageBox.information(self, "Success", f"Successfully combined objects into '{new_object}'!")
 
 def run():
 	global ui
