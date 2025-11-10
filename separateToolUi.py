@@ -9,9 +9,20 @@ from maya import OpenMaya as om
 import maya.cmds as cmds
 import importlib
 from . import version
+from . import separateToolUtil
 importlib.reload(version)
+importlib.reload(separateToolUtil)
+import os
 
 class SeparateDialog(QtWidgets.QDialog):
+	def get_icon_path(self, icon_name):
+		current_dir = os.path.dirname(os.path.abspath(__file__))
+		icon_folder = os.path.join(current_dir, 'images')
+		final_path = os.path.join(icon_folder, icon_name).replace('\\', '/')
+		print(f"Trying to load icon from: {final_path}")
+		return final_path
+
+
 	def __init__(self, parent=None):
 		super().__init__(parent)
 
@@ -22,67 +33,94 @@ class SeparateDialog(QtWidgets.QDialog):
 		self.setLayout(self.mainLayout)
 		self.setStyleSheet(
 			'''
-				font-family: Courier;
-				background-color: navy;
+				font-family: Terminal;
 			'''
 		)
-
 		self.selectLabel = QtWidgets.QLabel('Selected Items:')
-		self.mainLayout.addWidget(self.selectLabel)
-
 		self.selectionList = QtWidgets.QListWidget()
 		self.selectionList.setSelectionMode(QtWidgets.QAbstractItemView.ExtendedSelection)
+		self.mainLayout.addWidget(self.selectLabel)
 		self.mainLayout.addWidget(self.selectionList)
 
 		self.callback_id = None
 
-		self.separateGroup = QtWidgets.QGroupBox('Separate Option')
-		self.separateLayout = QtWidgets.QVBoxLayout()
+		self.processGroup = QtWidgets.QGroupBox("Processing Options")
+		self.processLayout = QtWidgets.QVBoxLayout()
 
-		self.prefixLabel = QtWidgets.QLabel('Prefix')
-		self.prefixLineEdit = QtWidgets.QLineEdit('Separated_obj')
-		self.sep_delHis_cb = QtWidgets.QCheckBox('Delete History')
-		self.sep_delHis_cb.setChecked(True)
-		self.sep_freeze_cb = QtWidgets.QCheckBox('Freeze Transfrom')
-		self.sep_freeze_cb.setChecked(True)
-		self.sep_center_cb = QtWidgets.QCheckBox('Center Pivot')
-		self.sep_center_cb.setChecked(True)
-		self.separateButton = QtWidgets.QPushButton('Separate')
+		self.prefixLabel = QtWidgets.QLabel('Name Prefix')
+		self.prefixLineEdit = QtWidgets.QLineEdit('processed_Obj')
+		self.deleteHis_cb = QtWidgets.QCheckBox('Delete History')
+		self.deleteHis_cb.setChecked(True)		
 
-		self.separateLayout.addWidget(self.prefixLabel)
-		self.separateLayout.addWidget(self.prefixLineEdit)
-		self.separateLayout.addWidget(self.sep_delHis_cb)
-		self.separateLayout.addWidget(self.sep_freeze_cb)
-		self.separateLayout.addWidget(self.sep_center_cb)
-		self.separateLayout.addWidget(self.separateButton)
-		self.separateGroup.setLayout(self.separateLayout)
-		self.mainLayout.addWidget(self.separateGroup)
+		self.centerPv_cb = QtWidgets.QCheckBox('Center Pivot')
+		self.centerPv_cb.setChecked(True)
 
-		self.combineGroup = QtWidgets.QGroupBox('Combine Option')
-		self.combineLayout = QtWidgets.QVBoxLayout()
+		self.processLayout.addWidget(self.prefixLabel)
+		self.processLayout.addWidget(self.prefixLineEdit)
+		self.processLayout.addWidget(self.deleteHis_cb)		
+
+		self.processLayout.addWidget(self.centerPv_cb)
+
+		self.buttonLayout = QtWidgets.QHBoxLayout()
+
+		self.separateButton = QtWidgets.QPushButton('')
+		self.combineButton = QtWidgets.QPushButton('')
+		self.button_size = QtCore.QSize(140, 140)
+		self.separateButton.setFixedSize(self.button_size)
+		self.combineButton.setFixedSize(self.button_size)
+
+		sep_normal_icon = self.get_icon_path('slime1-1v1.png')
+		sep_hover_icon = self.get_icon_path('slime1-2v2.png')
+		button_bg = self.get_icon_path('slime1bg.png')
+		pressed = self.get_icon_path('clicked2.png')
+
+		self.separateButton.setStyleSheet(f'''
+			QPushButton {{
+				image: url({sep_normal_icon});
+				image-position: center;
+				border-radius: 12px;
+				background-image: url({button_bg});
+				background-position: center;
+			}}
+			QPushButton:hover {{
+				image: url({sep_hover_icon});
+				border: 3px solid yellow;
+			}}
+			QPushButton:pressed{{
+				image: url({pressed});
+			}}
+		''')
+
+		com_normal_icon = self.get_icon_path('slime2v1.png')
+		com_hover_icon = self.get_icon_path('slime2-1v1.png')
+
+		self.combineButton.setStyleSheet(f'''
+			QPushButton {{
+				image: url({com_normal_icon});
+				image-position: center;
+				border-radius: 12px;
+				background-image: url({button_bg});
+				background-position: center;
+			}}
+			QPushButton:hover {{
+				image: url({com_hover_icon});
+				border: 3px solid yellow;
+			}}
+			QPushButton:pressed{{
+				image: url({pressed});
+			}}
+		''')
 		
-		self.renameLabel = QtWidgets.QLabel('Set Name')
-		self.renameLineEdit = QtWidgets.QLineEdit('Combined_obj')
-		self.com_del_cb = QtWidgets.QCheckBox('Delete History')
-		self.com_del_cb.setChecked(True)
-		self.com_freeze_cb = QtWidgets.QCheckBox('Freeze Transfrom')
-		self.com_freeze_cb.setChecked(True)
-		self.com_center_cb = QtWidgets.QCheckBox('Center Pivot')
-		self.com_center_cb.setChecked(True)
-		self.combineButton = QtWidgets.QPushButton('Combine')
+		self.buttonLayout.addWidget(self.separateButton)
+		self.buttonLayout.addWidget(self.combineButton)
 
-		self.combineLayout.addWidget(self.renameLabel)
-		self.combineLayout.addWidget(self.renameLineEdit)
-		self.combineLayout.addWidget(self.com_del_cb)
-		self.combineLayout.addWidget(self.com_freeze_cb)
-		self.combineLayout.addWidget(self.com_center_cb)
-		self.combineLayout.addWidget(self.combineButton)
-		self.combineGroup.setLayout(self.combineLayout)
-		self.mainLayout.addWidget(self.combineGroup)
+		self.processLayout.addLayout(self.buttonLayout)
+		self.processGroup.setLayout(self.processLayout)
+		self.mainLayout.addWidget(self.processGroup)
 
 		self.update_ui_from_selection()
 		self.create_callback()
-		self.connect_signals()
+		self.onClick()
 
 	def create_callback(self):
 		if self.callback_id is None:
@@ -101,109 +139,53 @@ class SeparateDialog(QtWidgets.QDialog):
 				print(f"Error removing callback: {e}")
 
 	def update_ui_from_selection(self, *args):
-		self.selectionList.blockSignals(True)
-		self.selectionList.clear()
-		selected_objects = cmds.ls(selection=True)
+			self.selectionList.blockSignals(True)
+			self.selectionList.clear()
+			selected_objects = cmds.ls(selection=True)
 
-		if selected_objects:
-			self.selectionList.addItems(selected_objects)
+			if selected_objects:
+				self.selectionList.addItems(selected_objects)
 
-		self.selectionList.blockSignals(False)
+			self.selectionList.blockSignals(False)
 
 	def closeEvent(self, event):
 		print("Closing UI, removing callback...")
 		self.remove_callback()
 		super(SeparateDialog, self).closeEvent(event)
 
-	def connect_signals(self):
-		self.separateButton.clicked.connect(self.separate_logic)
-		self.combineButton.clicked.connect(self.combine_logic)
+	def onClick(self):
+		self.separateButton.clicked.connect(self.on_separate_clicked)
+		self.combineButton.clicked.connect(self.on_combine_clicked)
 
-	def separate_logic(self):
+	def on_separate_clicked(self):
 		selection = cmds.ls(selection=True, long=True, type='transform')
-
-		if not selection:
-			cmds.warning("Please select a mesh object to separate.")
-			return
-
-		target_object = selection[0]
-		shape_nodes = cmds.listRelatives(target_object, shapes=True, type='mesh', fullPath=True)
-
-		if not shape_nodes:
-			cmds.warning(f"'{target_object}' is not a valid mesh object. Please select an object with mesh geometry.")
-			return
-
-		try:
-			separated_objects = cmds.polySeparate(target_object, constructionHistory=False)
-			if not separated_objects:
-				cmds.warning("Separation failed. The object might already be a single shell.")
-				cmds.select(target_object)
-				return
-		except Exception as e:
-			cmds.error(f"An error occurred during separation: {e}")
-			return
-
-		print(f"Successfully separated '{target_object}' into {len(separated_objects)} objects.")
-
 		prefix = self.prefixLineEdit.text()
-		fsep_obj = []
+		delete_history = self.deleteHis_cb.isChecked()
+		center_pivot = self.centerPv_cb.isChecked()
 
-		for i, obj in enumerate(separated_objects):
-			newName = cmds.rename(obj, f"{prefix}_{i+1:03}")
+		processed_objects, count = separateToolUtil.separate_logic(
+			selection, prefix, delete_history, center_pivot
+		)
 
-			if self.sep_delHis_cb.isChecked():
-				cmds.delete(newName, constructionHistory=True)
+		if processed_objects:
+			QtWidgets.QMessageBox.information(self, "Success", f"Separation complete. Processed {count} object(s).")
+		else:
+			QtWidgets.QMessageBox.warning(self, "Separation Failed", "No valid objects were processed. Check script editor for details.")
 
-			if self.sep_center_cb.isChecked():
-				cmds.xform(newName, centerPivots=True)
-
-			if self.sep_freeze_cb.isChecked():
-				cmds.makeIdentity(newName, apply=True, translate=1, rotate=1, scale=1, normal=0)
-
-			fsep_obj.append(newName)
-		QtWidgets.QMessageBox.information(self, "Success", f"Separated into {len(separated_objects)} objects!")
-
-	def combine_logic(self):
+	def on_combine_clicked(self):
 		selection = cmds.ls(selection=True, long=True)
+		prefix = self.prefixLineEdit.text()
+		delete_history = self.deleteHis_cb.isChecked()
+		center_pivot = self.centerPv_cb.isChecked()
 
-		if len(selection) <2:
-			cmds.warning("Please select at least two mesh objects to combine.")
-		
-		valid_meshes = []
-		
-		for obj in selection:
-			if cmds.listRelatives(obj, shapes=True, type='mesh', fullPath=True):
-				valid_meshes.append(obj)
-			else:
-				cmds.warning(f"Skipping '{obj}' as it is not a valid mesh.")
+		final_name = separateToolUtil.combine_logic(
+			selection, prefix, delete_history, center_pivot
+		)
 
-		if len(valid_meshes) < 2:
-			cmds.warning("Not enough valid mesh objects selected to perform a combine.")
-			return
-
-		try:
-			combined_result = cmds.polyUnite(valid_meshes, constructionHistory=True)
-			new_object = combined_result[0]
-		except Exception as e:
-			cmds.error(f"An error occurred during combination: {e}")
-			return
-
-		print(f"Successfully combined {len(valid_meshes)} objects into '{new_object}'.")
-		self._post_process([new_object])
-
-		rename = self.renameLineEdit.text()
-		final_name = cmds.rename(new_object, rename)
-
-		if self.com_del_cb.isChecked():
-			cmds.delete(final_name, constructionHistory=True)
-
-		if self.com_center_cb.isChecked():
-			cmds.xform(final_name, centerPivots=True)
-
-		if self.com_center_cb.isChecked():
-			cmds.makeIdentity(final_name, apply=True, translate=1, rotate=1, scale=1, normal=0)
-
-		QtWidgets.QMessageBox.information(self, "Success", f"Successfully combined objects into '{new_object}'!")
+		if final_name:
+			QtWidgets.QMessageBox.information(self, "Success", f"Successfully combined objects into '{final_name}'!")
+		else:
+			QtWidgets.QMessageBox.warning(self, "Combine Failed", "Could not combine objects. Please select at least two valid meshes.")
 
 def run():
 	global ui
